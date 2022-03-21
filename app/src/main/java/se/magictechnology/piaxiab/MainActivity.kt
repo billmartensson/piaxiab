@@ -23,6 +23,28 @@ class MainActivity : AppCompatActivity() {
             PurchasesUpdatedListener { billingResult, purchases ->
                 // To be implemented in a later section.
 
+                if(billingResult.responseCode == BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED)
+                {
+                    Log.i("PIAXDEBUG", "ÄGER REDAN")
+                }
+                if(billingResult.responseCode == BillingClient.BillingResponseCode.OK)
+                {
+                    purchases?.let {  plist ->
+                        plist.firstOrNull()?.let {  thepurchase ->
+                            if (!thepurchase.isAcknowledged) {
+                                val acknowledgePurchaseParams = AcknowledgePurchaseParams.newBuilder()
+                                    .setPurchaseToken(thepurchase.purchaseToken)
+
+                                billingClient.acknowledgePurchase(acknowledgePurchaseParams.build()) {
+                                    Log.i("PIAXDEBUG", "OK BUY")
+
+                                    //billingClient.endConnection()
+                                }
+                            }
+                        }
+                    }
+                }
+
 
 
             }
@@ -160,4 +182,22 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    fun checkHistory()
+    {
+        Log.i("PIAXDEBUG", "CHECK HISTORY")
+        billingClient.queryPurchaseHistoryAsync(BillingClient.SkuType.INAPP, { billingResultQuery, purchasesList ->
+            if (billingResultQuery.responseCode == BillingClient.BillingResponseCode.OK) {
+
+                val purchasesResult: Purchase.PurchasesResult = billingClient.queryPurchases(BillingClient.SkuType.INAPP)
+
+                for (purchase in purchasesResult.purchasesList!!) {
+                    //val acknowledgePurchaseParams = AcknowledgePurchaseParams.newBuilder().setPurchaseToken(purchase.purchaseToken)
+
+                    Log.i("PIAXDEBUG", "HAVE BOUGHT "+purchase.skus.first())
+
+                }
+
+            }
+        })
+    }
 }
