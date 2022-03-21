@@ -3,13 +3,16 @@ package se.magictechnology.piaxiab
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.util.Log
+import android.widget.Button
+import android.widget.TextView
 import com.android.billingclient.api.*
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.*
 
 class MainActivity : AppCompatActivity() {
 
     lateinit var billingClient: BillingClient
+
+    var products : List<SkuDetails>? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -19,6 +22,9 @@ class MainActivity : AppCompatActivity() {
         val purchasesUpdatedListener =
             PurchasesUpdatedListener { billingResult, purchases ->
                 // To be implemented in a later section.
+
+
+
             }
 
         billingClient = BillingClient.newBuilder(this)
@@ -26,15 +32,20 @@ class MainActivity : AppCompatActivity() {
             .enablePendingPurchases()
             .build()
 
-
-
         billingClient.startConnection(object : BillingClientStateListener {
             override fun onBillingSetupFinished(billingResult: BillingResult) {
 
                 if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
                     // The BillingClient is ready. You can query purchases here.
                     Log.i("PIAXDEBUG", "SETUP OK")
-                    getproducts()
+                    /*
+                    runBlocking {
+                        launch {
+                            getproducts()
+                        }
+                    }
+                     */
+                    getproductsasync()
                 } else {
                     Log.i("PIAXDEBUG", "SETUP NOT OK")
                 }
@@ -46,14 +57,34 @@ class MainActivity : AppCompatActivity() {
             }
         })
 
+        findViewById<Button>(R.id.buyPremiumButton).setOnClickListener {
+            for(prod in products!!)
+            {
+                if(prod.sku == "premium")
+                {
+                    buyProduct(prod)
+                }
+            }
+        }
+
+        findViewById<Button>(R.id.buyCreditButton).setOnClickListener {
+            for(prod in products!!)
+            {
+                if(prod.sku == "credit")
+                {
+                    buyProduct(prod)
+                }
+            }
+        }
+
 
     }
 
 
-    fun getproducts() {
+    suspend fun getproducts() {
         val skuList = ArrayList<String>()
-        skuList.add("premium_upgrade")
-        skuList.add("gas")
+        skuList.add("premium")
+        skuList.add("credit")
         val params = SkuDetailsParams.newBuilder()
         params.setSkusList(skuList).setType(BillingClient.SkuType.INAPP)
 
@@ -66,7 +97,42 @@ class MainActivity : AppCompatActivity() {
 
         //buyProduct(skuDetailsResult.skuDetailsList!!.first())
 
+        for(prod in skuDetailsResult.skuDetailsList!!)
+        {
+            Log.i("PIAXDEBUG", prod.title)
+        }
 
+        products = skuDetailsResult.skuDetailsList!!
+        doProductUI()
+
+    }
+
+    fun getproductsasync()
+    {
+        val skuList = ArrayList<String>()
+        skuList.add("premium")
+        skuList.add("credit")
+        val params = SkuDetailsParams.newBuilder()
+        params.setSkusList(skuList).setType(BillingClient.SkuType.INAPP)
+
+        billingClient!!.querySkuDetailsAsync(params.build()) { responseCode, skuDetailsList ->
+            if (responseCode.responseCode == BillingClient.BillingResponseCode.OK) {
+
+                Log.i("PIAXDEBUG", "GOT PRODUCTS " + skuDetailsList!!.size.toString())
+
+                for(prod in skuDetailsList)
+                {
+                    Log.i("PIAXDEBUG", prod.title)
+                }
+
+                products = skuDetailsList
+                doProductUI()
+
+            } else {
+                // TODO: Error no response
+                Log.i("PIAXDEBUG", "ERROR PRODUCTS ")
+            }
+        }
     }
 
     fun buyProduct(theproduct : SkuDetails)
@@ -75,6 +141,23 @@ class MainActivity : AppCompatActivity() {
             .setSkuDetails(theproduct)
             .build()
         val responseCode = billingClient.launchBillingFlow(this, flowParams).responseCode
+    }
+
+    fun doProductUI()
+    {
+        for(prod in products!!)
+        {
+            if(prod.sku == "premium")
+            {
+                findViewById<TextView>(R.id.premiumTitleTextview).text = prod.title
+                findViewById<TextView>(R.id.premiumDescriptionTextview).text = prod.description
+            }
+            if(prod.sku == "credit")
+            {
+                findViewById<TextView>(R.id.creditTitleTextview).text = prod.title
+                findViewById<TextView>(R.id.creditDescptionTextview).text = prod.description
+            }
+        }
     }
 
 }
